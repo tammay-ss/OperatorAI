@@ -41,29 +41,31 @@ module.exports.initCallData = (callSid, payload = {}, source = 'twilio') => {
 };
 
 const updateNamedEntitiesWithExpensiveModel = (transcript, callSid) =>
-  getNamedEntities(transcript, true).then(async ({ name, location }) => {
-    const updates = {};
-    if (name) {
-      console.log('[Expensive Model] Found name:\t', name);
-      updates.name = name;
-    }
-
-    if (location) {
-      console.log('[Expensive Model] Found location:\t', location);
-      updates.location = location;
-
-      const coordinates = await getCoordinates(location);
-      if (coordinates?.lat && coordinates?.lng) {
-        updates.geocode = coordinates;
+  getNamedEntities(transcript, true)
+    .then(async ({ name, location }) => {
+      const updates = {};
+      if (name) {
+        console.log('[Expensive Model] Found name:\t', name);
+        updates.name = name;
       }
-    }
 
-    if (Object.keys(updates).length > 0) {
-      return update(ref(db, `/calls/${callSid}`), updates);
-    }
-  }).catch((err) => {
-    console.error('Error running secondary NER model:', err);
-  });
+      if (location) {
+        console.log('[Expensive Model] Found location:\t', location);
+        updates.location = location;
+
+        const coordinates = await getCoordinates(location);
+        if (coordinates?.lat && coordinates?.lng) {
+          updates.geocode = coordinates;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        return update(ref(db, `/calls/${callSid}`), updates);
+      }
+    })
+    .catch((err) => {
+      console.error('Error running secondary NER model:', err);
+    });
 
 /**
  * Shared triage processing function used by both Twilio live-call disconnect

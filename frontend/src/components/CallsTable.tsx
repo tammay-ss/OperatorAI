@@ -81,12 +81,7 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
         onClick={() => onClick(data)}
       >
         <Td textAlign="left" w="30px" pl={4} py={3}>
-          <Badge
-            fontSize="11px"
-            fontWeight="600"
-            borderRadius="2px"
-            colorScheme={PRIORITIES?.[data.priority]?.color}
-          >
+          <Badge fontSize="11px" fontWeight="600" borderRadius="2px" colorScheme={PRIORITIES?.[data.priority]?.color}>
             {data.priority}
           </Badge>
         </Td>
@@ -109,12 +104,7 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
                   Recorded Demo
                 </Badge>
               ) : (
-                <Badge
-                  size="sm"
-                  colorScheme={data.live ? 'green' : 'gray'}
-                  fontSize="10px"
-                  borderRadius="2px"
-                >
+                <Badge size="sm" colorScheme={data.live ? 'green' : 'gray'} fontSize="10px" borderRadius="2px">
                   {data.live ? 'Twilio Live' : 'Twilio Logged'}
                 </Badge>
               )}
@@ -136,12 +126,7 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
           {data.location || '—'}
         </Td>
         <Td py={3}>
-          <Badge
-            colorScheme={STATUSES?.[data.status]?.color}
-            fontSize="11px"
-            fontWeight="500"
-            borderRadius="2px"
-          >
+          <Badge colorScheme={STATUSES?.[data.status]?.color} fontSize="11px" fontWeight="500" borderRadius="2px">
             {data.status}
           </Badge>
         </Td>
@@ -174,7 +159,8 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
                   bg="var(--surface)"
                   color="var(--ink)"
                 >
-                  {data.transcript || 'No transcript generated.'} {data.live ? <span className="blinking-cursor">|</span> : null}
+                  {data.transcript || 'No transcript generated.'}{' '}
+                  {data.live ? <span className="blinking-cursor">|</span> : null}
                 </Text>
                 {data.geocode && (
                   <Image
@@ -191,7 +177,7 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
                       data.geocode?.lng
                     }&zoom=16&size=500x150&maptype=roadmap
 &markers=color:${PRIORITIES[data.priority]?.color}%7C${data.geocode?.lat},${data.geocode?.lng}
-&key=${import.meta.env.VITE_GOOGLE_API_KEY.replace(/\n+/, '').trim()}`}
+&key=${(import.meta.env.VITE_GOOGLE_API_KEY || '').replace(/\n+/, '').trim()}`}
                   />
                 )}
               </VStack>

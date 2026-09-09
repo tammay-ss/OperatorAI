@@ -1,10 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import {
-  User,
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
-} from 'firebase/auth';
+import { User, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 
 interface AuthContextType {
@@ -56,8 +51,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), pass);
-    } catch (err: any) {
-      const friendlyMessage = formatAuthError(err?.code);
+    } catch (err: unknown) {
+      const authErr = err as { code?: string };
+      const friendlyMessage = formatAuthError(authErr?.code);
       setError(friendlyMessage);
       throw new Error(friendlyMessage);
     }
@@ -67,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     try {
       await firebaseSignOut(auth);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error signing out:', err);
     }
   };

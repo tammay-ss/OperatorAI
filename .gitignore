@@ -2,11 +2,19 @@
 
 # compiled output
 dist
+dist-ssr
+build
 tmp
 /out-tsc
 
 # dependencies
 node_modules
+
+# environment variables & local secrets
+.env
+.env.*
+!.env.example
+*.local
 
 # IDEs and editors
 .idea
@@ -24,16 +32,19 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# misc
+# logs & caches
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
 /.sass-cache
 /connect.lock
 /coverage
 /libpeerconnection.log
-npm-debug.log
-yarn-error.log
 testem.log
 /typings
-.env
 
 # System Files
 .DS_Store

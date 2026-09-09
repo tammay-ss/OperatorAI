@@ -29,7 +29,8 @@ export const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || '/dashboard';
+  const locationState = location.state as { from?: { pathname?: string } } | null;
+  const from = locationState?.from?.pathname || '/dashboard';
 
   // If already logged in, redirect directly to dashboard
   React.useEffect(() => {
@@ -52,8 +53,9 @@ export const Login: React.FC = () => {
     try {
       await signIn(email, password);
       navigate(from, { replace: true });
-    } catch (err: any) {
-      setLocalError(err.message || 'Authentication failed.');
+    } catch (err: unknown) {
+      const authErr = err as { message?: string };
+      setLocalError(authErr.message || 'Authentication failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -188,7 +190,8 @@ export const Login: React.FC = () => {
 
             <Box borderTop="1px solid var(--rule)" pt={4} w="full">
               <Text fontSize="12px" color="#717D8A" lineHeight="1.5">
-                Note: Dispatcher accounts are pre-provisioned via the Firebase administrative console. Self-registration is disabled for security compliance.
+                Note: Dispatcher accounts are pre-provisioned via the Firebase administrative console. Self-registration
+                is disabled for security compliance.
               </Text>
             </Box>
           </VStack>

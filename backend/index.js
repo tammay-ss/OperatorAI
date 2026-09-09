@@ -47,9 +47,7 @@ const upload = multer({
     const allowedExtensions = ['.wav', '.mp3', '.m4a', '.ogg', '.aac', '.flac', '.webm'];
     const ext = path.extname(file.originalname).toLowerCase();
     const isAudioMime =
-      file.mimetype.startsWith('audio/') ||
-      file.mimetype === 'application/ogg' ||
-      file.mimetype === 'video/ogg';
+      file.mimetype.startsWith('audio/') || file.mimetype === 'application/ogg' || file.mimetype === 'video/ogg';
 
     if (isAudioMime || allowedExtensions.includes(ext)) {
       cb(null, true);
@@ -178,7 +176,9 @@ app.post('/api/calls/upload-audio', uploadLimiter, upload.single('audio'), async
     const duration = metadata?.format?.duration;
     if (duration && duration > maxUploadSeconds) {
       return res.status(400).json({
-        error: `Audio duration (${Math.round(duration)}s) exceeds maximum allowed limit of ${maxUploadSeconds}s (5 minutes).`,
+        error: `Audio duration (${Math.round(
+          duration
+        )}s) exceeds maximum allowed limit of ${maxUploadSeconds}s (5 minutes).`,
       });
     }
 

@@ -31,7 +31,7 @@ import {
   Spinner,
   Divider,
 } from '@chakra-ui/react';
-import { FiUploadCloud, FiFile, FiCheckCircle, FiAlertTriangle } from 'react-icons/fi';
+import { FiUploadCloud, FiFile, FiCheckCircle } from 'react-icons/fi';
 import { AiOutlineAudio } from 'react-icons/ai';
 
 interface RecordedCallUploadProps {
@@ -63,24 +63,29 @@ interface JobStatusResponse {
   };
 }
 
-const STEP_DETAILS: Record<
-  ProcessingStep,
-  { label: string; progress: number; description: string }
-> = {
+const STEP_DETAILS: Record<ProcessingStep, { label: string; progress: number; description: string }> = {
   idle: { label: 'Ready', progress: 0, description: 'Select an audio file to begin' },
   queued: { label: 'Queued', progress: 15, description: 'Validating file format and audio duration...' },
   uploading: { label: 'Uploading', progress: 35, description: 'Sending audio buffer to AssemblyAI async API...' },
-  transcribing: { label: 'Transcribing', progress: 65, description: 'Generating accurate speech-to-text transcript...' },
-  analyzing: { label: 'AI Triage & Geocoding', progress: 85, description: 'Running IndicNER, mDeBERTa classification, and India geocoding...' },
-  completed: { label: 'Triage Completed', progress: 100, description: 'Successfully synchronized to ERSS-112 live dispatch feed!' },
+  transcribing: {
+    label: 'Transcribing',
+    progress: 65,
+    description: 'Generating accurate speech-to-text transcript...',
+  },
+  analyzing: {
+    label: 'AI Triage & Geocoding',
+    progress: 85,
+    description: 'Running IndicNER, mDeBERTa classification, and India geocoding...',
+  },
+  completed: {
+    label: 'Triage Completed',
+    progress: 100,
+    description: 'Successfully synchronized to ERSS-112 live dispatch feed!',
+  },
   error: { label: 'Processing Failed', progress: 100, description: 'An error occurred during intake.' },
 };
 
-export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
-  isOpen,
-  onClose,
-  onCallProcessed,
-}) => {
+export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({ isOpen, onClose, onCallProcessed }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [callerLabel, setCallerLabel] = useState<string>('');
   const [step, setStep] = useState<ProcessingStep>('idle');
@@ -112,7 +117,9 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
 
     // Check client-side file size (15MB)
     if (file.size > 15 * 1024 * 1024) {
-      setErrorMessage(`Selected file is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed is 15MB.`);
+      setErrorMessage(
+        `Selected file is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed is 15MB.`
+      );
       setSelectedFile(null);
       return;
     }
@@ -165,9 +172,10 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
           setStep('error');
           setErrorMessage('Processing timed out after 70 seconds. Please try again.');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorObj = err as { message?: string };
         setStep('error');
-        setErrorMessage(err.message || 'Error checking processing status.');
+        setErrorMessage(errorObj.message || 'Error checking processing status.');
       }
     };
 
@@ -205,16 +213,17 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
 
       // Start async status polling
       startPollingJob(data.jobId);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string };
       setStep('error');
-      setErrorMessage(err.message || 'Network error while uploading audio file.');
+      setErrorMessage(errorObj.message || 'Network error while uploading audio file.');
     }
   };
 
   const isProcessing = ['queued', 'uploading', 'transcribing', 'analyzing'].includes(step);
 
   return (
-    <Modal isOpen={isOpen} onClose={isProcessing ? () => {} : handleClose} size="xl" isCentered>
+    <Modal isOpen={isOpen} onClose={isProcessing ? () => undefined : handleClose} size="xl" isCentered>
       <ModalOverlay backdropFilter="blur(4px)" />
       <ModalContent borderRadius="2xl" shadow="2xl" overflow="hidden">
         <ModalHeader bg="gray.50" borderBottom="1px solid" borderColor="blackAlpha.100" pb={3}>
@@ -268,10 +277,20 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
                   Call Triaged & Logged Successfully!
                 </AlertTitle>
                 <AlertDescription fontSize="sm" color="gray.600" mb={4}>
-                  The recorded audio has been transcribed, analyzed by IndicNER and mDeBERTa, and pushed to the live ERSS dispatcher table.
+                  The recorded audio has been transcribed, analyzed by IndicNER and mDeBERTa, and pushed to the live
+                  ERSS dispatcher table.
                 </AlertDescription>
 
-                <Box w="full" bg="white" p={4} borderRadius="xl" border="1px solid" borderColor="green.100" textAlign="left" mb={4}>
+                <Box
+                  w="full"
+                  bg="white"
+                  p={4}
+                  borderRadius="xl"
+                  border="1px solid"
+                  borderColor="green.100"
+                  textAlign="left"
+                  mb={4}
+                >
                   <Flex justify="space-between" mb={2}>
                     <Text fontSize="xs" fontWeight="bold" color="gray.500">
                       CALL SID
@@ -321,7 +340,7 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
                     Transcript Preview:
                   </Text>
                   <Text fontSize="xs" fontStyle="italic" color="gray.700" noOfLines={3}>
-                    "{jobResult.transcript}"
+                    &ldquo;{jobResult.transcript}&rdquo;
                   </Text>
                 </Box>
               </Alert>
@@ -389,7 +408,13 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
                         style={{ display: 'none' }}
                         onChange={handleFileChange}
                       />
-                      <Icon as={selectedFile ? FiFile : FiUploadCloud} w={8} h={8} color={selectedFile ? 'purple.600' : 'gray.400'} mb={2} />
+                      <Icon
+                        as={selectedFile ? FiFile : FiUploadCloud}
+                        w={8}
+                        h={8}
+                        color={selectedFile ? 'purple.600' : 'gray.400'}
+                        mb={2}
+                      />
                       {selectedFile ? (
                         <Box>
                           <Text fontWeight="bold" fontSize="sm" color="purple.900">
@@ -423,7 +448,8 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
                       borderRadius="lg"
                     />
                     <Text fontSize="xs" color="gray.500" mt={1}>
-                      If the audio doesn't state a name clearly, this label will be used as the fallback caller name.
+                      If the audio doesn&apos;t state a name clearly, this label will be used as the fallback caller
+                      name.
                     </Text>
                   </FormControl>
 
@@ -445,7 +471,9 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
                               Scenario 1: Medical Emergency (High Priority)
                             </Text>
                             <Text fontStyle="italic" mt={1}>
-                              "Hello, my name is Rajesh Sharma. I am calling from Connaught Place, Inner Circle in New Delhi. My colleague suddenly collapsed with severe chest pain and breathlessness. We need an ambulance immediately!"
+                              &ldquo;Hello, my name is Rajesh Sharma. I am calling from Connaught Place, Inner Circle in
+                              New Delhi. My colleague suddenly collapsed with severe chest pain and breathlessness. We
+                              need an ambulance immediately!&rdquo;
                             </Text>
                           </Box>
 
@@ -454,7 +482,9 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
                               Scenario 2: Fire Emergency (High Priority)
                             </Text>
                             <Text fontStyle="italic" mt={1}>
-                              "Please help, this is Sunita Verma at Atta Market, Sector 18 Noida. An LPG gas cylinder caught fire in a restaurant kitchen and black smoke is spreading rapidly. Send fire engines!"
+                              &ldquo;Please help, this is Sunita Verma at Atta Market, Sector 18 Noida. An LPG gas
+                              cylinder caught fire in a restaurant kitchen and black smoke is spreading rapidly. Send
+                              fire engines!&rdquo;
                             </Text>
                           </Box>
 
@@ -463,7 +493,8 @@ export const RecordedCallUpload: React.FC<RecordedCallUploadProps> = ({
                               Scenario 3: Traffic Accident (Medium Priority)
                             </Text>
                             <Text fontStyle="italic" mt={1}>
-                              "This is Amit Patel near Western Express Highway, Andheri East Mumbai. Two cars collided and traffic is blocked. Send traffic police and medical assistance."
+                              &ldquo;This is Amit Patel near Western Express Highway, Andheri East Mumbai. Two cars
+                              collided and traffic is blocked. Send traffic police and medical assistance.&rdquo;
                             </Text>
                           </Box>
                         </VStack>

@@ -6,7 +6,6 @@ import {
   AccordionPanel,
   Box,
   Heading,
-  Text,
 } from '@chakra-ui/react';
 
 export function FAQ() {
@@ -37,7 +36,7 @@ export function FAQ() {
     },
     {
       q: `* Can I use this demo in a real emergency? Should I call this number instead of 112?`,
-      a: 'ABSOLUTELY NOT! RAKSHA112 is strictly an academic college project demo and simulation. It has NO connection to India\'s official 112 ERSS, police, fire, or hospital services. In case of a real emergency anywhere in India, immediately dial 112 (or 100 Police, 101 Fire, 108 Ambulance) from your phone.',
+      a: "ABSOLUTELY NOT! RAKSHA112 is strictly an academic college project demo and simulation. It has NO connection to India's official 112 ERSS, police, fire, or hospital services. In case of a real emergency anywhere in India, immediately dial 112 (or 100 Police, 101 Fire, 108 Ambulance) from your phone.",
     },
   ];
 

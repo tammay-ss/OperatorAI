@@ -26,9 +26,7 @@ module.exports.getCoordinates = async (location) => {
 
 const getNamedEntities = async (transcript, useExpensiveModel = false) => {
   // Primary: ai4bharat/IndicNER for Indian context; Fallback: roberta-large-ner-english
-  const model = useExpensiveModel
-    ? 'Jean-Baptiste/roberta-large-ner-english'
-    : 'ai4bharat/IndicNER';
+  const model = useExpensiveModel ? 'Jean-Baptiste/roberta-large-ner-english' : 'ai4bharat/IndicNER';
 
   const hfKey = process.env.HUGGINGFACE_API_KEY || process.env.HUGGINGFACE_API_KEY2;
 
@@ -62,7 +60,7 @@ const getNamedEntities = async (transcript, useExpensiveModel = false) => {
     }
 
     const namedEntities = (data ?? []).sort(({ score: scoreA }, { score: scoreB }) => (scoreB ?? 0) - (scoreA ?? 0));
-    
+
     // Support both entity_group ('PER', 'LOC', 'ORG') and raw token labels ('B-PER', 'I-PER', 'B-LOC', etc.)
     const nameItem = namedEntities.find((item) => {
       const group = item.entity_group || item.entity;
@@ -137,7 +135,7 @@ const getEmergencyType = async (transcript) => {
 
 module.exports.analyzeTranscript = async (transcript) => {
   try {
-    const strippedTranscript = transcript.replace(/[A-Z.]/g, char => char.toLowerCase()).replace(/\./g, "");
+    const strippedTranscript = transcript.replace(/[A-Z.]/g, (char) => char.toLowerCase()).replace(/\./g, '');
 
     const { name, location } = await getNamedEntities(strippedTranscript);
     const { emergencyType } = await getEmergencyType(strippedTranscript);
@@ -153,7 +151,7 @@ module.exports.analyzeTranscript = async (transcript) => {
 };
 
 module.exports.getNamedEntities = (transcript, useExpensiveModel = false) => {
-  const strippedTranscript = transcript.replace(/[A-Z.]/g, char => char.toLowerCase()).replace(/\./g, "");
+  const strippedTranscript = transcript.replace(/[A-Z.]/g, (char) => char.toLowerCase()).replace(/\./g, '');
   return getNamedEntities(strippedTranscript, useExpensiveModel);
 };
 

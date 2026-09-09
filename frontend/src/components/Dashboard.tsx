@@ -1,17 +1,4 @@
-import {
-  SimpleGrid,
-  Text,
-  chakra,
-  Box,
-  Skeleton,
-  Flex,
-  Badge,
-  Button,
-  Icon,
-  HStack,
-  useDisclosure,
-  Divider,
-} from '@chakra-ui/react';
+import { SimpleGrid, Text, Box, Skeleton, Flex, Badge, Button, Icon, HStack, useDisclosure } from '@chakra-ui/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wrapper, Status } from '@googlemaps/react-wrapper';
@@ -135,7 +122,14 @@ export const Dashboard = ({
           </HStack>
 
           <HStack spacing={4}>
-            <HStack spacing={2} px={3} py={1.5} bg="var(--surface-alt)" border="1px solid var(--rule)" borderRadius="2px">
+            <HStack
+              spacing={2}
+              px={3}
+              py={1.5}
+              bg="var(--surface-alt)"
+              border="1px solid var(--rule)"
+              borderRadius="2px"
+            >
               <Icon as={FiUser} w={3.5} h={3.5} color="var(--accent)" />
               <Text fontSize="12px" color="var(--ink)" fontWeight="500">
                 {user?.email || 'Authorized Operator'}
@@ -178,7 +172,8 @@ export const Dashboard = ({
       <Box bg="#FFF8E6" borderBottom="1px solid #FFE082" px={{ base: 4, md: 8 }} py={2.5}>
         <Box maxW="1400px" mx="auto">
           <Text fontSize="12px" color="#664D03" fontWeight="500">
-            ⚠️ <strong>DEMO SIMULATION ONLY:</strong> Academic emergency response simulation project. Not connected to real ERSS-112 or police/fire/medical services.
+            ⚠️ <strong>DEMO SIMULATION ONLY:</strong> Academic emergency response simulation project. Not connected to
+            real ERSS-112 or police/fire/medical services.
           </Text>
         </Box>
       </Box>
@@ -273,7 +268,7 @@ export const Dashboard = ({
                       key={call.key}
                       position={call.geocode}
                       icon={{
-                        url: `http://maps.google.com/mapfiles/ms/icons/${PRIORITIES?.[call.priority]?.color}-dot.png`,
+                        url: `https://maps.google.com/mapfiles/ms/icons/${PRIORITIES?.[call.priority]?.color}-dot.png`,
                       }}
                     />
                   );
@@ -291,11 +286,7 @@ export const Dashboard = ({
       <Footer />
 
       {/* Recorded Call Upload Modal (Preserved & Protected inside Dashboard) */}
-      <RecordedCallUpload
-        isOpen={isUploadOpen}
-        onClose={onUploadClose}
-        onCallProcessed={handleCallProcessed}
-      />
+      <RecordedCallUpload isOpen={isUploadOpen} onClose={onUploadClose} onCallProcessed={handleCallProcessed} />
     </Box>
   );
 };
