@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "calls": {
+      ".read": "auth != null",
+      ".write": true
+    }
+  }
+}
