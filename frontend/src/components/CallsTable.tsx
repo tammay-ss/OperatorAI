@@ -11,6 +11,9 @@ import {
   Thead,
   Tr,
   useDisclosure,
+  useToast,
+  Button,
+  Icon,
   VStack,
   Select,
   HStack,
@@ -18,13 +21,14 @@ import {
   Flex,
   Image,
 } from '@chakra-ui/react';
-import React from 'react';
-import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiChevronDown, FiChevronUp, FiMapPin } from 'react-icons/fi';
 import { ref, set } from 'firebase/database';
 import { db } from '../firebaseConfig';
 import { CallData, EMERGENCIES, PRIORITIES, STATUSES } from '../types/calls';
 import { Info } from './Info';
 import { StatusIndicator } from './StatusIndicator';
+import { AIAnalysisPanel } from './AIAnalysisPanel';
 
 const headers = ['Priority', 'Caller & Source', 'Emergency', 'Time', 'Location', 'Status', ''];
 
@@ -32,13 +36,28 @@ interface TrProps {
   selected: boolean;
   data: CallData;
   onClick: (data: CallData) => void;
+  onStatusChange?: (callSid: string, newStatus: string) => void;
 }
 
-function updateField(callSid: string, key: string, value: string) {
-  set(ref(db, `/calls/${callSid}/${key}`), value);
+async function updateField(callSid: string, key: string, value: string) {
+  try {
+    set(ref(db, `/calls/${callSid}/${key}`), value);
+  } catch (err) {
+    console.debug('Failed to update RTDB field:', err);
+  }
+
+  try {
+    await fetch(`/api/incidents/${callSid}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: value }),
+    });
+  } catch (err) {
+    console.debug('Failed to update backend incident status:', err);
+  }
 }
 
-const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
+const TableRow: React.FC<TrProps> = ({ data, selected, onClick, onStatusChange }) => {
   const { isOpen, onToggle } = useDisclosure({
     defaultIsOpen: data.live,
   });
@@ -68,6 +87,8 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
 
   const formattedPhone = formatPhoneNumber(data.phone);
   const isUploadSource = data.source === 'upload';
+  const isDemoSource = data.source === 'demo';
+  const emergencyInfo = data.emergency ? EMERGENCIES[data.emergency as keyof typeof EMERGENCIES] : null;
 
   return (
     <>
@@ -91,9 +112,16 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
               <StatusIndicator active={data.live} />
             </Box>
             <Box mr={3}>
-              <Text fontWeight="600" fontSize="13px" color="var(--ink)">
-                {data.name}
-              </Text>
+              <HStack spacing={2} align="center">
+                <Text fontWeight="600" fontSize="13px" color="var(--ink)">
+                  {data.name}
+                </Text>
+                {data.incident_id && (
+                  <Badge colorScheme="blue" variant="subtle" fontSize="10px">
+                    {data.incident_id}
+                  </Badge>
+                )}
+              </HStack>
               <Text fontSize="12px" color="#5C6675">
                 {formattedPhone}
               </Text>
@@ -102,6 +130,10 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
               {isUploadSource ? (
                 <Badge size="sm" colorScheme="purple" variant="subtle" fontSize="10px" borderRadius="2px">
                   Recorded Demo
+                </Badge>
+              ) : isDemoSource ? (
+                <Badge size="sm" colorScheme="teal" variant="subtle" fontSize="10px" borderRadius="2px">
+                  Pipeline Test
                 </Badge>
               ) : (
                 <Badge size="sm" colorScheme={data.live ? 'green' : 'gray'} fontSize="10px" borderRadius="2px">
@@ -117,13 +149,26 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
           </Flex>
         </Td>
         <Td fontSize="13px" color="var(--ink)" py={3}>
-          {data.emergency || '—'}
+          <HStack spacing={1}>
+            {emergencyInfo && <Text>{emergencyInfo.icon}</Text>}
+            <Text>{data.emergency || '—'}</Text>
+            {data.confidence !== undefined && data.confidence > 0 && (
+              <Badge fontSize="9px" colorScheme="gray" borderRadius="full" fontWeight="500">
+                {Math.round(data.confidence * 100)}%
+              </Badge>
+            )}
+          </HStack>
         </Td>
         <Td fontSize="13px" color="#5C6675" py={3}>
           {new Date(data.dateCreated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </Td>
         <Td fontSize="13px" color="var(--ink)" py={3}>
-          {data.location || '—'}
+          <VStack align="flex-start" spacing={0}>
+            <Text fontWeight="500">{data.location_text || data.location || '—'}</Text>
+            <Badge fontSize="9px" colorScheme="purple" variant="subtle">
+              Caller Statement
+            </Badge>
+          </VStack>
         </Td>
         <Td py={3}>
           <Badge colorScheme={STATUSES?.[data.status]?.color} fontSize="11px" fontWeight="500" borderRadius="2px">
@@ -138,13 +183,14 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
         <Td colSpan={headers.length} bg="var(--surface-alt)" p={4} borderBottom="1px solid var(--rule)">
           <Collapse in={isOpen} animateOpacity>
             <Stack direction={{ base: 'column', lg: 'row' }} spacing={6} p={2}>
+              {/* Left Column: Transcript + Map Preview */}
               <VStack w={{ base: 'full', lg: '2xl' }} alignItems="flex-start" spacing={3}>
                 <Flex justify="space-between" align="center" w="full">
                   <Text fontSize="13px" fontWeight="600" color="var(--ink)">
                     Transcript Stream
                   </Text>
-                  <Badge colorScheme={isUploadSource ? 'purple' : 'blue'} fontSize="11px" borderRadius="2px">
-                    Source: {isUploadSource ? 'Recorded Audio Upload' : 'Twilio Live Stream'}
+                  <Badge colorScheme={isUploadSource ? 'purple' : isDemoSource ? 'teal' : 'blue'} fontSize="11px" borderRadius="2px">
+                    Source: {isUploadSource ? 'Recorded Audio Upload' : isDemoSource ? 'Demo Pipeline Test' : 'Twilio Live Stream'}
                   </Badge>
                 </Flex>
                 <Text
@@ -159,29 +205,74 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
                   bg="var(--surface)"
                   color="var(--ink)"
                 >
-                  {data.transcript || 'No transcript generated.'}{' '}
-                  {data.live ? <span className="blinking-cursor">|</span> : null}
-                </Text>
-                {data.geocode && (
-                  <Image
-                    cursor="pointer"
-                    border="1px solid var(--rule)"
-                    borderRadius="2px"
-                    onClick={() => {
-                      onClick(data);
-                      document.querySelector('#map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }}
-                    w="full"
-                    maxW="3xl"
-                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${data.geocode?.lat},${
-                      data.geocode?.lng
-                    }&zoom=16&size=500x150&maptype=roadmap
-&markers=color:${PRIORITIES[data.priority]?.color}%7C${data.geocode?.lat},${data.geocode?.lng}
-&key=${(import.meta.env.VITE_GOOGLE_API_KEY || '').replace(/\n+/, '').trim()}`}
-                  />
-                )}
+                {data.transcript || 'No transcript generated.'}{' '}
+                {data.live ? <span className="blinking-cursor">|</span> : null}
+              </Text>
+              {data.recordingUrl && (
+                <Box p={2.5} bg="var(--surface)" border="1px solid var(--rule)" borderRadius="2px" w="full">
+                  <Flex justify="space-between" align="center" mb={1.5}>
+                    <Text fontSize="11px" fontWeight="600" color="var(--ink)">
+                      🎙️ Twilio Call Recording
+                    </Text>
+                    {data.recordingDuration && (
+                      <Badge size="xs" colorScheme="purple">
+                        {data.recordingDuration}s
+                      </Badge>
+                    )}
+                  </Flex>
+                  <audio controls src={data.recordingUrl} style={{ width: '100%', height: '32px' }} />
+                </Box>
+              )}
+              {(data.geocode || (data.latitude && data.longitude)) && (
+                <Box
+                  p={3}
+                  bg="var(--surface)"
+                  border="1px solid var(--rule)"
+                  borderRadius="2px"
+                  w="full"
+                >
+                  <Flex justify="space-between" align="center" mb={1}>
+                    <HStack spacing={1.5}>
+                      <Icon as={FiMapPin} color="#DC2626" />
+                      <Text fontSize="12px" fontWeight="700" color="var(--ink)">
+                        {data.location_text || data.location || 'Incident Coordinates'}
+                      </Text>
+                    </HStack>
+                    <Badge colorScheme="purple" fontSize="10px">
+                      Source: Caller Statement
+                    </Badge>
+                  </Flex>
+                  <Text fontSize="11px" color="#5C6675" mb={2}>
+                    {data.formattedAddress || 'India Regional Dispatch Area'}
+                  </Text>
+                  <Flex justify="space-between" align="center">
+                    <Text fontSize="10px" fontFamily="monospace" color="#717D8A">
+                      {(data.latitude ?? data.geocode?.lat)?.toFixed(5)}, {(data.longitude ?? data.geocode?.lng)?.toFixed(5)}
+                    </Text>
+                    <Button
+                      size="xs"
+                      colorScheme="blue"
+                      variant="outline"
+                      fontSize="10px"
+                      leftIcon={<FiMapPin />}
+                      onClick={() => {
+                        onClick(data);
+                        document.querySelector('#leaflet-dispatch-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }}
+                    >
+                      Focus on Map
+                    </Button>
+                  </Flex>
+                </Box>
+              )}
+
+                {/* AI Analysis Panel */}
+                <Box w="full" mt={2}>
+                  <AIAnalysisPanel data={data} />
+                </Box>
               </VStack>
 
+              {/* Right Column: Dispatcher Controls */}
               <VStack flexGrow={1} alignSelf="flex-start" spacing={3} w={{ base: 'full', lg: 'auto' }}>
                 <Text fontSize="13px" fontWeight="600" color="var(--ink)" alignSelf="flex-start">
                   Dispatcher Controls
@@ -197,7 +288,10 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
                     borderColor="var(--rule)"
                     fontSize="13px"
                     bg="var(--surface)"
-                    onChange={(e) => updateField(data.callSid, 'status', e.target.value)}
+                    onChange={(e) => {
+                      updateField(data.callSid, 'status', e.target.value);
+                      onStatusChange?.(data.callSid, e.target.value);
+                    }}
                   >
                     {Object.entries(STATUSES).map(([, { key: statusKey, display }]) => {
                       return (
@@ -258,9 +352,47 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick }) => {
                     Intake Method
                   </Text>
                   <Text fontSize="13px" color="var(--ink)" fontWeight="500">
-                    {isUploadSource ? 'Recorded Audio Fallback' : 'Twilio Live Voice Stream'}
+                    {isUploadSource ? 'Recorded Audio Fallback' : isDemoSource ? 'Demo Pipeline Test' : 'Twilio Live Voice Stream'}
                   </Text>
                 </HStack>
+                {data.formattedAddress && (
+                  <HStack w="full" maxW="sm" justify="space-between">
+                    <Text fontSize="13px" fontWeight="500" color="#5C6675" w={28}>
+                      Full Address
+                    </Text>
+                    <Text fontSize="12px" color="var(--ink)" fontWeight="500" textAlign="right" maxW="200px">
+                      {data.formattedAddress}
+                    </Text>
+                  </HStack>
+                )}
+                {data.dateProcessed && (
+                  <HStack w="full" maxW="sm" justify="space-between">
+                    <Text fontSize="13px" fontWeight="500" color="#5C6675" w={28}>
+                      AI Processed
+                    </Text>
+                    <Text fontSize="12px" color="var(--ink)" fontWeight="500">
+                      {new Date(data.dateProcessed).toLocaleTimeString()}
+                    </Text>
+                  </HStack>
+                )}
+                <HStack w="full" maxW="sm" justify="space-between" pt={1}>
+                  <Text fontSize="13px" fontWeight="500" color="#5C6675" w={28}>
+                    Location Source
+                  </Text>
+                  <Badge colorScheme="purple" fontSize="11px" borderRadius="2px">
+                    Caller Statement ({data.location_precision || 'Geocoded'})
+                  </Badge>
+                </HStack>
+                {(data.latitude || data.geocode?.lat) && (
+                  <HStack w="full" maxW="sm" justify="space-between">
+                    <Text fontSize="13px" fontWeight="500" color="#5C6675" w={28}>
+                      Coordinates
+                    </Text>
+                    <Text fontSize="11px" fontFamily="monospace" color="var(--ink)">
+                      {(data.latitude ?? data.geocode?.lat)?.toFixed(5)}, {(data.longitude ?? data.geocode?.lng)?.toFixed(5)}
+                    </Text>
+                  </HStack>
+                )}
               </VStack>
             </Stack>
           </Collapse>
@@ -274,7 +406,8 @@ const CallsTable: React.FC<{
   selectedRowKey?: string | null;
   calls: CallData[];
   onRowClick: (data: CallData) => void;
-}> = ({ calls, onRowClick, selectedRowKey }) => {
+  onStatusChange?: (callSid: string, newStatus: string) => void;
+}> = ({ calls, onRowClick, selectedRowKey, onStatusChange }) => {
   const sortDescendingByDate = calls.sort(
     (a, b) => new Date((b as CallData).dateCreated).getTime() - new Date((a as CallData).dateCreated).getTime()
   );
@@ -319,7 +452,13 @@ const CallsTable: React.FC<{
             </Tr>
           ) : (
             sortByLive.map((v) => (
-              <TableRow key={v.key} selected={selectedRowKey === v.key} data={v} onClick={onRowClick} />
+              <TableRow
+                key={v.key}
+                selected={selectedRowKey === v.key}
+                data={v}
+                onClick={onRowClick}
+                onStatusChange={onStatusChange}
+              />
             ))
           )}
         </Tbody>

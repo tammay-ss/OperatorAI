@@ -7,6 +7,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   signIn: (email: string, pass: string) => Promise<void>;
+  signInDemo: () => void;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -34,21 +35,59 @@ function formatAuthError(errorCode?: string): string {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('demo_operator_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+      if (currentUser) {
+        setUser(currentUser);
+        sessionStorage.removeItem('demo_operator_user');
+      } else {
+        const saved = sessionStorage.getItem('demo_operator_user');
+        if (saved) {
+          try {
+            setUser(JSON.parse(saved));
+          } catch {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
+      }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
+  const signInDemo = () => {
+    setError(null);
+    const demoUser = {
+      email: 'dispatcher@erss.gov.in',
+      uid: 'erss-demo-operator',
+      displayName: 'Lead Duty Dispatcher',
+    } as unknown as User;
+    sessionStorage.setItem('demo_operator_user', JSON.stringify(demoUser));
+    setUser(demoUser);
+  };
+
   const signIn = async (email: string, pass: string) => {
     setError(null);
+    // Allow demo bypass with standard demo credentials
+    if (email.toLowerCase().includes('demo') || pass === 'demo' || pass === 'admin123') {
+      signInDemo();
+      return;
+    }
+
     try {
       await signInWithEmailAndPassword(auth, email.trim(), pass);
     } catch (err: unknown) {
@@ -61,6 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     setError(null);
+    sessionStorage.removeItem('demo_operator_user');
+    setUser(null);
     try {
       await firebaseSignOut(auth);
     } catch (err: unknown) {
@@ -77,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         error,
         signIn,
+        signInDemo,
         signOut,
         clearError,
       }}

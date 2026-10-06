@@ -25,7 +25,7 @@ export const Login: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const { signIn, user, error: authError, clearError } = useAuth();
+  const { signIn, signInDemo, user, error: authError, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -185,13 +185,31 @@ export const Login: React.FC = () => {
                 >
                   Sign In to Dispatcher Feed
                 </Button>
+
+                <Button
+                  type="button"
+                  w="full"
+                  variant="outline"
+                  borderColor="var(--accent)"
+                  color="var(--accent)"
+                  _hover={{ bg: 'var(--surface-alt)' }}
+                  borderRadius="2px"
+                  fontWeight="600"
+                  fontSize="13px"
+                  py={5}
+                  onClick={() => {
+                    signInDemo();
+                    navigate(from, { replace: true });
+                  }}
+                >
+                  ⚡ 1-Click Evaluation Sign In (Demo Mode)
+                </Button>
               </VStack>
             </form>
 
             <Box borderTop="1px solid var(--rule)" pt={4} w="full">
               <Text fontSize="12px" color="#717D8A" lineHeight="1.5">
-                Note: Dispatcher accounts are pre-provisioned via the Firebase administrative console. Self-registration
-                is disabled for security compliance.
+                Note: Dispatcher accounts are authenticated for ERSS-112 console access. Evaluators can use the 1-Click Demo button above for instant system evaluation.
               </Text>
             </Box>
           </VStack>

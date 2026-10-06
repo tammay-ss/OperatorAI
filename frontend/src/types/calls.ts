@@ -31,34 +31,83 @@ type EmergenciesKeys =
   | 'Traffic Accident'
   | 'Crime In Progress'
   | 'Other Emergency';
-export const EMERGENCIES: Record<EmergenciesKeys, { key: EmergenciesKeys; display: string }> = {
-  'Medical Emergency': { key: 'Medical Emergency', display: 'Medical Emergency' },
-  'Fire Emergency': { key: 'Fire Emergency', display: 'Fire Emergency' },
-  'Traffic Accident': { key: 'Traffic Accident', display: 'Traffic Accident' },
-  'Crime In Progress': { key: 'Crime In Progress', display: 'Crime In Progress' },
-  'Other Emergency': { key: 'Other Emergency', display: 'Other Emergency' },
+export const EMERGENCIES: Record<EmergenciesKeys, { key: EmergenciesKeys; display: string; icon: string }> = {
+  'Medical Emergency': { key: 'Medical Emergency', display: 'Medical Emergency', icon: '🏥' },
+  'Fire Emergency': { key: 'Fire Emergency', display: 'Fire Emergency', icon: '🔥' },
+  'Traffic Accident': { key: 'Traffic Accident', display: 'Traffic Accident', icon: '🚗' },
+  'Crime In Progress': { key: 'Crime In Progress', display: 'Crime In Progress', icon: '🚨' },
+  'Other Emergency': { key: 'Other Emergency', display: 'Other Emergency', icon: '⚠️' },
 };
 
 export interface Geocode {
   lat: number;
   lng: number;
+  formattedAddress?: string;
+}
+
+export interface CallerLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  timestamp: string;
+  active: boolean;
+  stoppedAt?: string;
+}
+
+export interface StructuredEntities {
+  location?: string;
+  address?: string;
+  victims?: number;
+  injuries?: string[];
+  medicalConditions?: string[];
+  weapons?: string[];
+  vehicles?: string[];
+  licensePlate?: string;
+  suspectInfo?: string;
+  landmark?: string;
+  callerPhone?: string;
+  location_text?: string;
 }
 
 export type CallData = {
   key: string;
   callSid: string;
+  incident_id?: string;
   streamSid?: string;
   name: string;
   emergency: string;
+  emergency_type?: string;
   location?: string;
+  location_text?: string;
+  address?: string;
+  victims?: number;
+  latitude?: number;
+  longitude?: number;
+  location_source?: 'caller_statement' | 'network' | 'gps' | string;
+  location_precision?: 'exact' | 'approximate' | 'unavailable' | string;
+  accuracy?: number;
   geocode?: Geocode;
+  formattedAddress?: string;
   phone: string;
   priority: PrioritesKeys;
   live: boolean;
   status: StatusesKeys;
   transcript?: string;
   dateCreated: string;
+  timestamp?: string;
   dateDisconnected?: string;
-  source?: 'twilio' | 'upload' | string;
+  dateProcessed?: string;
+  dateResolved?: string;
+  source?: 'twilio' | 'upload' | 'demo' | 'seed_demo' | string;
   audioDuration?: number;
+  recordingUrl?: string;
+  recordingSid?: string;
+  recordingDuration?: number;
+  // AI Analysis fields
+  confidence?: number;
+  classificationScores?: Record<string, number>;
+  entities?: StructuredEntities;
+  processingStatus?: 'streaming' | 'processing' | 'analyzing' | 'completed' | string;
+  // Caller location fields (legacy fallback)
+  callerLocation?: CallerLocation;
 };

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAKSHA112 — Share Your Location</title>
+  <style>
+    :root {
+      --ink: #14181f;
+      --surface: #ffffff;
+      --surface-alt: #f2f4f7;
+      --rule: #d8dde3;
+      --accent: #1b3a5c;
+      --accent-hover: #132a44;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--surface-alt);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .header {
+      width: 100%;
+      background: var(--accent);
+      color: white;
+      padding: 16px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .container {
+      max-width: 480px;
+      width: 100%;
+      padding: 20px;
+      flex: 1;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-badge.waiting {
+      background: #fef3c7;
+      color: var(--warning);
+    }
+
+    .status-badge.sharing {
+      background: #dcfce7;
+      color: var(--success);
+    }
+
+    .status-badge.stopped {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .status-badge.error {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .pulse-dot.green {
+      background: var(--success);
+    }
+
+    .pulse-dot.yellow {
+      background: var(--warning);
+    }
+
+    .pulse-dot.red {
+      background: var(--danger);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--rule);
+      font-size: 13px;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      color: #5c6675;
+      font-weight: 500;
+    }
+
+    .info-value {
+      font-weight: 600;
+      color: var(--ink);
+      text-align: right;
+    }
+
+    .disclaimer {
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #92400e;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .error-msg {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #991b1b;
+      margin-bottom: 16px;
+    }
+
+    .update-count {
+      font-size: 11px;
+      color: #5c6675;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    .footer {
+      width: 100%;
+      text-align: center;
+      padding: 16px;
+      font-size: 11px;
+      color: #717d8a;
+      border-top: 1px solid var(--rule);
+    }
+
+    #map-preview {
+      width: 100%;
+      height: 200px;
+      border-radius: 8px;
+      border: 1px solid var(--rule);
+      margin-top: 12px;
+      display: none;
+      background: var(--surface-alt);
+      overflow: hidden;
+    }
+
+    #map-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🛡️ RAKSHA112 Emergency Location</h1>
+    <p>Secure location sharing for emergency response</p>
+  </div>
+
+  <div class="container">
+    <div class="disclaimer">
+      ⚠️ <strong>Academic Simulation:</strong> This is a demo emergency response system.
+      In a real emergency, dial <strong>112</strong> directly.
+    </div>
+
+    <div id="error-container" style="display:none">
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+
+    <div class="card" id="status-card">
+      <div style="text-align: center; margin-bottom: 16px;">
+        <span class="status-badge waiting" id="status-badge">
+          <span class="pulse-dot yellow"></span>
+          Waiting for Permission
+        </span>
+      </div>
+
+      <div id="location-info" style="display: none;">
+        <div class="info-row">
+          <span class="info-label">Latitude</span>
+          <span class="info-value" id="lat-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Longitude</span>
+          <span class="info-value" id="lng-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Accuracy</span>
+          <span class="info-value" id="acc-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Last Updated</span>
+          <span class="info-value" id="time-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Updates Sent</span>
+          <span class="info-value" id="count-value">0</span>
+        </div>
+
+        <div id="map-preview">
+          <img id="map-img" src="" alt="Location preview" />
+        </div>
+      </div>
+    </div>
+
+    <div id="action-container">
+      <button class="btn btn-primary" id="share-btn" onclick="startSharing()">
+        📍 Share My Location with Emergency Responders
+      </button>
+    </div>
+  </div>
+
+  <div class="footer">
+    RAKSHA112 • Emergency Response Location Sharing • Academic Demo
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    let watchId = null;
+    let updateCount = 0;
+    let isSharing = false;
+
+    function showError(msg) {
+      document.getElementById('error-container').style.display = 'block';
+      document.getElementById('error-msg').textContent = msg;
+    }
+
+    function hideError() {
+      document.getElementById('error-container').style.display = 'none';
+    }
+
+    function setStatus(type, text) {
+      const badge = document.getElementById('status-badge');
+      const dotColors = { waiting: 'yellow', sharing: 'green', stopped: 'red', error: 'red' };
+      badge.className = 'status-badge ' + type;
+      badge.innerHTML = `<span class="pulse-dot ${dotColors[type] || 'yellow'}"></span>${text}`;
+    }
+
+    // Validate token on page load
+    async function validateSession() {
+      if (!token) {
+        showError('No location session token found. This link may be invalid.');
+        document.getElementById('share-btn').disabled = true;
+        setStatus('error', 'Invalid Link');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/location/session/${token}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showError(data.error || 'This location session is invalid or has expired.');
+          document.getElementById('share-btn').disabled = true;
+          setStatus('error', 'Session Invalid');
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.active) {
+          showError('This location session has been deactivated.');
+          document.getElementById('share-btn').disabled = true;
+          setStatus('stopped', 'Session Closed');
+          return;
+        }
+
+        // Session is valid
+        hideError();
+      } catch (err) {
+        showError('Unable to validate session. Please check your connection.');
+        document.getElementById('share-btn').disabled = true;
+        setStatus('error', 'Connection Error');
+      }
+    }
+
+    async function startSharing() {
+      hideError();
+
+      if (!navigator.geolocation) {
+        showError('Geolocation is not supported by your browser.');
+        setStatus('error', 'Not Supported');
+        return;
+      }
+
+      setStatus('waiting', 'Requesting GPS Permission...');
+      document.getElementById('share-btn').disabled = true;
+
+      watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          isSharing = true;
+          const { latitude, longitude, accuracy } = position.coords;
+
+          // Update display
+          document.getElementById('location-info').style.display = 'block';
+          document.getElementById('lat-value').textContent = latitude.toFixed(6);
+          document.getElementById('lng-value').textContent = longitude.toFixed(6);
+          document.getElementById('acc-value').textContent = accuracy ? `${Math.round(accuracy)} m` : '—';
+          document.getElementById('time-value').textContent = new Date().toLocaleTimeString();
+
+          updateCount++;
+          document.getElementById('count-value').textContent = updateCount;
+
+          setStatus('sharing', 'Live — Sharing Location');
+
+          // Update map preview (using OpenStreetMap static tiles)
+          const mapDiv = document.getElementById('map-preview');
+          const mapImg = document.getElementById('map-img');
+          mapDiv.style.display = 'block';
+          mapImg.src = `https://staticmap.openstreetmap.de/staticmap.php?center=${latitude},${longitude}&zoom=16&size=480x200&maptype=mapnik&markers=${latitude},${longitude},red-pushpin`;
+
+          // Update action button
+          document.getElementById('action-container').innerHTML = `
+            <button class="btn btn-danger" onclick="stopSharing()">
+              ⏹️ Stop Sharing Location
+            </button>
+            <div class="update-count">Location updates every few seconds • Stay on this page</div>
+          `;
+
+          // Send to backend
+          try {
+            await fetch('/api/location/update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token, latitude, longitude, accuracy }),
+            });
+          } catch (err) {
+            console.error('Failed to send location update:', err);
+          }
+        },
+        (error) => {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              showError('Location permission denied. Please allow location access and try again.');
+              setStatus('error', 'Permission Denied');
+              break;
+            case error.POSITION_UNAVAILABLE:
+              showError('Location information is unavailable on this device.');
+              setStatus('error', 'Unavailable');
+              break;
+            case error.TIMEOUT:
+              showError('Location request timed out. Please try again.');
+              setStatus('error', 'Timeout');
+              break;
+            default:
+              showError('An unknown error occurred while getting location.');
+              setStatus('error', 'Error');
+          }
+          document.getElementById('share-btn').disabled = false;
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+        }
+      );
+    }
+
+    async function stopSharing() {
+      isSharing = false;
+
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+
+      setStatus('stopped', 'Location Sharing Stopped');
+
+      document.getElementById('action-container').innerHTML = `
+        <button class="btn btn-primary" onclick="startSharing()">
+          📍 Resume Location Sharing
+        </button>
+      `;
+
+      // Notify backend
+      try {
+        await fetch('/api/location/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+      } catch (err) {
+        console.error('Failed to notify stop:', err);
+      }
+    }
+
+    // Handle page close
+    window.addEventListener('beforeunload', () => {
+      if (isSharing) {
+        // Attempt to notify backend (best-effort, may not complete)
+        navigator.sendBeacon('/api/location/stop', JSON.stringify({ token }));
+      }
+    });
+
+    // Initialize
+    validateSession();
+  </script>
+</body>
+</html>
