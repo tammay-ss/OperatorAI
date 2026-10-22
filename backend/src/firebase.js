@@ -40,7 +40,8 @@ function generateIncidentId(callSid) {
       const data = snapshot.val();
       for (const [key, val] of Object.entries(data)) {
         if (val) {
-          incidentsStore.set(key, { ...val, key, callSid: val.callSid || key });
+          const current = incidentsStore.get(key) || {};
+          incidentsStore.set(key, { ...val, ...current, key, callSid: current.callSid || val.callSid || key });
         }
       }
       console.log(`[Firebase Cache] Hydrated ${incidentsStore.size} existing incidents from database.`);
@@ -327,7 +328,8 @@ module.exports.getAllIncidents = async () => {
       const data = snapshot.val();
       for (const [key, val] of Object.entries(data)) {
         if (val) {
-          incidentsStore.set(key, { ...val, key, callSid: val.callSid || key });
+          const current = incidentsStore.get(key) || {};
+          incidentsStore.set(key, { ...val, ...current, key, callSid: current.callSid || val.callSid || key });
         }
       }
     }
