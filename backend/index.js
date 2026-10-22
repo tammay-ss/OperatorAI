@@ -110,7 +110,7 @@ async function processAudioJob(jobId, audioBuffer, callerLabel, initialDuration)
     job.transcriptId = transcriptId;
 
     // 3. Poll for transcription completion
-    const { text, audio_duration } = await pollTranscription(transcriptId);
+    const { text, audio_duration, language_code } = await pollTranscription(transcriptId);
     const finalDuration = audio_duration || initialDuration || 0;
     job.duration = finalDuration;
 
@@ -133,6 +133,7 @@ async function processAudioJob(jobId, audioBuffer, callerLabel, initialDuration)
         From: 'Recorded Audio Fallback',
         audioDuration: finalDuration,
         transcript: text,
+        detected_language: language_code,
       },
       'upload'
     );

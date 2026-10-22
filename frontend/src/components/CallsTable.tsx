@@ -185,10 +185,17 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick, onStatusChange }
             <Stack direction={{ base: 'column', lg: 'row' }} spacing={6} p={2}>
               {/* Left Column: Transcript + Map Preview */}
               <VStack w={{ base: 'full', lg: '2xl' }} alignItems="flex-start" spacing={3}>
-                <Flex justify="space-between" align="center" w="full">
-                  <Text fontSize="13px" fontWeight="600" color="var(--ink)">
-                    Transcript Stream
-                  </Text>
+                <Flex justify="space-between" align="center" w="full" wrap="wrap" gap={2}>
+                  <HStack spacing={2}>
+                    <Text fontSize="13px" fontWeight="600" color="var(--ink)">
+                      Transcript Stream
+                    </Text>
+                    {data.language && (
+                      <Badge colorScheme="teal" fontSize="10px" borderRadius="2px">
+                        🌐 {data.language}
+                      </Badge>
+                    )}
+                  </HStack>
                   <Badge colorScheme={isUploadSource ? 'purple' : isDemoSource ? 'teal' : 'blue'} fontSize="11px" borderRadius="2px">
                     Source: {isUploadSource ? 'Recorded Audio Upload' : isDemoSource ? 'Demo Pipeline Test' : 'Twilio Live Stream'}
                   </Badge>
@@ -205,9 +212,26 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick, onStatusChange }
                   bg="var(--surface)"
                   color="var(--ink)"
                 >
-                {data.transcript || 'No transcript generated.'}{' '}
-                {data.live ? <span className="blinking-cursor">|</span> : null}
-              </Text>
+                  {data.original_transcript || data.transcript || 'No transcript generated.'}{' '}
+                  {data.live ? <span className="blinking-cursor">|</span> : null}
+                </Text>
+
+                {data.english_translation && data.english_translation !== (data.original_transcript || data.transcript) && (
+                  <Box w="full" p={2.5} bg="#F0F9FF" border="1px solid #BAE6FD" borderRadius="2px">
+                    <Text fontSize="11px" fontWeight="700" color="#0369A1" mb={1}>
+                      🇬🇧 English Translation (Used for Dispatch Triage):
+                    </Text>
+                    <Text
+                      whiteSpace="pre-wrap"
+                      fontFamily="monospace"
+                      fontSize="12px"
+                      lineHeight="1.5"
+                      color="#0C4A6E"
+                    >
+                      {data.english_translation}
+                    </Text>
+                  </Box>
+                )}
               {data.recordingUrl && (
                 <Box p={2.5} bg="var(--surface)" border="1px solid var(--rule)" borderRadius="2px" w="full">
                   <Flex justify="space-between" align="center" mb={1.5}>

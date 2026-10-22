@@ -108,6 +108,12 @@ export type CallData = {
   classificationScores?: Record<string, number>;
   entities?: StructuredEntities;
   processingStatus?: 'streaming' | 'processing' | 'analyzing' | 'completed' | string;
+  // Multilingual fields
+  language?: string;
+  detected_language?: string;
+  original_transcript?: string;
+  english_translation?: string;
+  is_code_mixed?: boolean;
   // Caller location fields (legacy fallback)
   callerLocation?: CallerLocation;
 };

@@ -2,6 +2,7 @@ const { initializeApp } = require('firebase/app');
 const { getDatabase, ref, set, update, get } = require('firebase/database');
 const EventEmitter = require('events');
 const { getCoordinates, analyzeTranscript, getNamedEntities, analyzePriority } = require('./utils');
+const { processMultilingualTranscript } = require('./multilingual');
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY || 'AIzaSyCvco7fC8XnCjXGir_bY_QKXVrn7qdZglU',
@@ -71,6 +72,10 @@ module.exports.initCallData = async (callSid, payload = {}, source = 'twilio') =
     priority: payload.priority || 'TBD', // HIGH | MEDIUM | LOW | TBD
     status: 'OPEN', // 'OPEN' | 'DISPATCHED' | 'RESOLVED'
     transcript: payload.transcript || '',
+    language: payload.language || 'English',
+    detected_language: payload.detected_language || 'en',
+    original_transcript: payload.original_transcript || payload.transcript || '',
+    english_translation: payload.english_translation || '',
     processingStatus: isUpload ? 'processing' : 'streaming',
     location_source: 'caller_statement',
     location_precision: 'unavailable',
@@ -143,20 +148,29 @@ const processCallTranscript = async (callSid, transcript, callerLabel = null) =>
     return null;
   }
 
+  const multiRes = await processMultilingualTranscript(transcript);
+
   const updates = {
     transcript,
+    original_transcript: multiRes.originalTranscript,
+    english_translation: multiRes.englishTranslation,
+    detected_language: multiRes.detectedLanguage,
+    language: multiRes.languageName,
+    is_code_mixed: multiRes.isCodeMixed,
     processingStatus: 'analyzing',
     incident_id: generateIncidentId(callSid),
   };
 
-  const priority = analyzePriority(transcript);
+  const analysisText = multiRes.englishTranslation || transcript;
+
+  const priority = analyzePriority(analysisText);
   if (priority) {
     updates.priority = priority;
   }
 
-  console.log(`[Triage Pipeline] Processing callSid: ${callSid} | Priority: ${priority}`);
+  console.log(`[Triage Pipeline] Processing callSid: ${callSid} | Lang: ${multiRes.languageName} | Priority: ${priority}`);
 
-  const result = await analyzeTranscript(transcript);
+  const result = await analyzeTranscript(analysisText);
   const { name, location, emergencyType, confidence, allScores, structuredEntities } = result || {};
 
   // Location from caller statement

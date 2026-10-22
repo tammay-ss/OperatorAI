@@ -78,12 +78,13 @@ async function pollTranscription(transcriptId, maxWaitMs = 60000) {
       },
     });
 
-    const { status, text, audio_duration, error } = response.data;
+    const { status, text, audio_duration, language_code, error } = response.data;
 
     if (status === 'completed') {
       return {
         text: text || '',
         audio_duration: audio_duration || 0,
+        language_code: language_code || 'en',
       };
     }
 
