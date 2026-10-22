@@ -32,6 +32,7 @@ const {
   getLocationSession,
   deactivateLocationSession,
   getAllIncidents,
+  getIncident,
   updateIncidentStatus,
   updateCallRecording,
   incidentEvents,
@@ -44,6 +45,8 @@ const {
   twilioWebhookValidator,
   generateVoiceTwiML,
   generateHoldTwiML,
+  downloadTwilioRecordingAudio,
+  getTwilioRecordingStream,
 } = require('./src/twilio');
 
 // Rate limiting for upload endpoint
@@ -1044,6 +1047,85 @@ app.post(['/api/calls/twiml-hold', '/twiml-hold'], twilioWebhookValidator, (req,
 });
 
 /**
+ * Background processor for Twilio call recordings.
+ * Downloads the recording audio using server-side Twilio credentials,
+ * transcribes it via AssemblyAI (with automatic language detection for Indian languages & English),
+ * and executes the full Indic NER and emergency classification pipeline.
+ */
+async function processTwilioRecording({ callSid, recordingSid, recordingUrl, recordingDuration }) {
+  const isDebug = !!process.env.DEBUG;
+
+  try {
+    // 1. Check Twilio credentials and download audio
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+    if (!accountSid || !authToken) {
+      console.warn(
+        `[Twilio Recording] Cannot download recording for call ${callSid}: TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are not configured in backend/.env.`
+      );
+      return;
+    }
+
+    if (isDebug) {
+      console.log(`[DEBUG][Twilio Recording] Downloading recording audio for call ${callSid}...`);
+    }
+
+    const audioBuffer = await downloadTwilioRecordingAudio(recordingUrl, { accountSid, authToken });
+    if (!audioBuffer || audioBuffer.length === 0) {
+      console.warn(`[Twilio Recording] Downloaded empty audio buffer for call ${callSid}.`);
+      return;
+    }
+
+    if (isDebug) {
+      console.log(`[DEBUG][Twilio Recording] Recording downloaded (${audioBuffer.length} bytes) for call ${callSid}`);
+    }
+
+    // 2. Upload audio buffer to AssemblyAI
+    const apiKey = process.env.ASSEMBLYAI_API_KEY;
+    if (!apiKey) {
+      console.warn(`[AssemblyAI] ASSEMBLYAI_API_KEY not configured. Cannot transcribe recording for call ${callSid}.`);
+      return;
+    }
+
+    const uploadUrl = await uploadAudioToAssemblyAI(audioBuffer);
+
+    // 3. Initiate transcription job with automatic language detection
+    const transcriptId = await startTranscription(uploadUrl);
+    if (isDebug) {
+      console.log(
+        `[DEBUG][AssemblyAI] Transcription job started: id=${transcriptId} for call ${callSid}`
+      );
+    }
+
+    // 4. Poll transcription until completed
+    const { text, audio_duration, language_code } = await pollTranscription(transcriptId);
+    if (isDebug) {
+      console.log(
+        `[DEBUG][AssemblyAI] Transcription job finished: language=${language_code || 'auto'}, length=${
+          (text || '').length
+        } chars for call ${callSid}`
+      );
+    }
+
+    const finalText = (text || '').trim();
+    if (!finalText) {
+      console.log(`[Twilio Recording] Call ${callSid} produced an empty transcript (e.g. caller silence).`);
+      return;
+    }
+
+    // 5. Ingest transcript into Indian NLP Triage Pipeline & save to Firebase RTDB
+    console.log(`[Twilio Recording] Transcribed text for ${callSid}: "${finalText}". Running triage pipeline...`);
+    const triageResult = await processCallTranscript(callSid, finalText);
+
+    console.log(`[Twilio Recording] Successfully processed recording and triage for callSid: ${callSid}`);
+    return triageResult;
+  } catch (err) {
+    console.error(`[Twilio Recording Pipeline] Error processing recording for call ${callSid}:`, err.message);
+  }
+}
+
+/**
  * Twilio Call Recording Status Callback
  * Invoked by Twilio when the audio recording finishes processing
  */
@@ -1051,31 +1133,119 @@ app.post(['/api/calls/recording-status', '/api/recording-status'], twilioWebhook
   try {
     const callSid = req.body?.CallSid;
     const recordingSid = req.body?.RecordingSid;
-    const recordingUrl = req.body?.RecordingUrl;
+    const rawRecordingUrl = req.body?.RecordingUrl;
     const recordingDuration = req.body?.RecordingDuration;
     const recordingStatus = req.body?.RecordingStatus;
 
-    console.log(`\n[Twilio Recording] Callback received for call ${callSid}:`);
-    console.log(`  Status:    ${recordingStatus}`);
-    console.log(`  Duration:  ${recordingDuration}s`);
-    console.log(`  Audio URL: ${recordingUrl ? `${recordingUrl}.mp3` : 'N/A'}`);
-
-    if (callSid && recordingUrl) {
-      const audioUrl = `${recordingUrl}.mp3`;
-      const durationNum = parseInt(recordingDuration, 10) || undefined;
-      await updateCallRecording(callSid, {
-        recordingUrl: audioUrl,
-        recordingSid,
-        ...(durationNum ? { recordingDuration: durationNum, audioDuration: durationNum } : {}),
-      });
+    if (process.env.DEBUG) {
+      console.log(
+        `[DEBUG][Twilio Recording] Callback received: callSid=${callSid}, recordingSid=${recordingSid}, status=${recordingStatus}, duration=${recordingDuration}s`
+      );
     }
 
+    console.log(`\n[Twilio Recording] Callback received for call ${callSid}:`);
+    console.log(`  Status:        ${recordingStatus}`);
+    console.log(`  Duration:      ${recordingDuration}s`);
+    console.log(`  RecordingSid:  ${recordingSid || 'N/A'}`);
+
+    if (callSid && rawRecordingUrl) {
+      // Store local proxy route in database so browser NEVER requests api.twilio.com directly
+      const proxyAudioUrl = `/api/calls/${callSid}/recording`;
+      const durationNum = parseInt(recordingDuration, 10) || undefined;
+      await updateCallRecording(callSid, {
+        recordingUrl: proxyAudioUrl,
+        recordingSid,
+        rawRecordingUrl:
+          rawRecordingUrl.endsWith('.mp3') || rawRecordingUrl.endsWith('.wav')
+            ? rawRecordingUrl
+            : `${rawRecordingUrl}.mp3`,
+        ...(durationNum ? { recordingDuration: durationNum, audioDuration: durationNum } : {}),
+      });
+
+      if (process.env.DEBUG) {
+        console.log(`[DEBUG][DB] Stored recording metadata for call ${callSid}: recordingUrl=${proxyAudioUrl}`);
+      }
+
+      // If recording completed, trigger background download, transcription, and triage
+      if (recordingStatus === 'completed') {
+        processTwilioRecording({
+          callSid,
+          recordingSid,
+          recordingUrl: rawRecordingUrl,
+          recordingDuration: durationNum,
+        }).catch((procErr) => {
+          console.error(`[Twilio Recording] Background processor error for call ${callSid}:`, procErr.message);
+        });
+      }
+    }
+
+    // Acknowledge Twilio immediately with 200 OK so webhook never times out
     res.set('Content-Type', 'text/xml');
     return res.send('<Response/>');
   } catch (err) {
-    console.error('[Twilio Recording] Error handling recording status:', err);
+    console.error('[Twilio Recording] Error handling recording status:', err.message);
     res.set('Content-Type', 'text/xml');
     return res.send('<Response/>');
+  }
+});
+
+/**
+ * Stream Twilio recording audio to client.
+ * Uses server-side Twilio credentials to download from Twilio/S3 and pipe to client.
+ * Supports HTTP Range requests for seeking and audio scrubbing.
+ */
+app.get(['/api/calls/:callSid/recording', '/api/recordings/:recordingSid'], async (req, res) => {
+  try {
+    const callSid = req.params.callSid;
+    const recordingSidParam = req.params.recordingSid;
+
+    let recordingSid = recordingSidParam;
+    let rawRecordingUrl = null;
+
+    if (callSid) {
+      const incident = getIncident(callSid);
+      if (incident) {
+        recordingSid = incident.recordingSid || recordingSid;
+        rawRecordingUrl = incident.rawRecordingUrl;
+      }
+    }
+
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+    if (!accountSid || !authToken) {
+      return res.status(503).json({
+        error:
+          'Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN) are not configured on the backend server.',
+      });
+    }
+
+    let twilioUrl = rawRecordingUrl;
+    if (!twilioUrl && recordingSid) {
+      twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${recordingSid}.mp3`;
+    }
+    if (!twilioUrl && callSid && callSid.startsWith('RE')) {
+      twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Recordings/${callSid}.mp3`;
+    }
+
+    if (!twilioUrl) {
+      return res.status(404).json({ error: 'Audio recording not found for this incident.' });
+    }
+
+    const streamInfo = await getTwilioRecordingStream(twilioUrl, {
+      accountSid,
+      authToken,
+      rangeHeader: req.headers.range,
+    });
+
+    res.status(streamInfo.status);
+    res.set(streamInfo.headers);
+    streamInfo.stream.pipe(res);
+  } catch (err) {
+    console.error('[Recording Stream Proxy Error]:', err.message);
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Failed to stream audio recording.' });
+    }
   }
 });
 
