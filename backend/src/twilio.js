@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const axios = require('axios');
 
 /**
  * Validates Twilio's X-Twilio-Signature header using HMAC-SHA1.
@@ -120,9 +121,117 @@ function generateHoldTwiML(holdUrl) {
 </Response>`;
 }
 
+/**
+ * Downloads recording audio from Twilio using HTTP Basic Authentication.
+ * Handles Twilio 302/307 redirects to AWS S3 presigned URLs without leaking
+ * the Twilio Authorization header to S3 (which triggers S3 400 errors).
+ *
+ * @param {string} recordingUrl - Twilio recording URL (e.g. https://api.twilio.com/...)
+ * @param {Object} [credentials] - Twilio credentials
+ * @param {string} [credentials.accountSid]
+ * @param {string} [credentials.authToken]
+ * @returns {Promise<Buffer>} Audio file buffer
+ */
+async function downloadTwilioRecordingAudio(recordingUrl, credentials = {}) {
+  const accountSid = credentials.accountSid || process.env.TWILIO_ACCOUNT_SID;
+  const authToken = credentials.authToken || process.env.TWILIO_AUTH_TOKEN;
+
+  if (!accountSid || !authToken) {
+    throw new Error('Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN) are required to download recordings.');
+  }
+
+  let targetUrl = recordingUrl;
+  if (!targetUrl.endsWith('.mp3') && !targetUrl.endsWith('.wav')) {
+    targetUrl = `${targetUrl}.mp3`;
+  }
+
+  // Request from Twilio with Basic Auth, handling redirects manually so auth header is not sent to S3
+  const response = await axios.get(targetUrl, {
+    auth: { username: accountSid, password: authToken },
+    maxRedirects: 0,
+    validateStatus: (status) => (status >= 200 && status < 300) || (status >= 300 && status < 400),
+    responseType: 'arraybuffer',
+    timeout: 20000,
+  });
+
+  if (response.status >= 300 && response.status < 400 && response.headers.location) {
+    // S3 presigned URL redirect - fetch without Auth header
+    const s3Res = await axios.get(response.headers.location, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+    });
+    return Buffer.from(s3Res.data);
+  }
+
+  return Buffer.from(response.data);
+}
+
+/**
+ * Streams Twilio recording audio, supporting HTTP Range requests for audio scrubbing/seeking.
+ *
+ * @param {string} recordingUrl
+ * @param {Object} options
+ * @param {string} [options.accountSid]
+ * @param {string} [options.authToken]
+ * @param {string} [options.rangeHeader]
+ * @returns {Promise<{ status: number, headers: Object, stream: ReadableStream }>}
+ */
+async function getTwilioRecordingStream(recordingUrl, options = {}) {
+  const accountSid = options.accountSid || process.env.TWILIO_ACCOUNT_SID;
+  const authToken = options.authToken || process.env.TWILIO_AUTH_TOKEN;
+
+  if (!accountSid || !authToken) {
+    throw new Error('Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN) are required to stream recordings.');
+  }
+
+  let targetUrl = recordingUrl;
+  if (!targetUrl.endsWith('.mp3') && !targetUrl.endsWith('.wav')) {
+    targetUrl = `${targetUrl}.mp3`;
+  }
+
+  // Follow redirect from Twilio without forwarding auth to S3
+  const initialRes = await axios.get(targetUrl, {
+    auth: { username: accountSid, password: authToken },
+    maxRedirects: 0,
+    validateStatus: (s) => (s >= 200 && s < 300) || (s >= 300 && s < 400),
+    timeout: 15000,
+  });
+
+  const finalUrl =
+    initialRes.status >= 300 && initialRes.status < 400 && initialRes.headers.location
+      ? initialRes.headers.location
+      : targetUrl;
+
+  const forwardHeaders = {};
+  if (options.rangeHeader) {
+    forwardHeaders.Range = options.rangeHeader;
+  }
+
+  const audioRes = await axios.get(finalUrl, {
+    headers: forwardHeaders,
+    responseType: 'stream',
+    validateStatus: (s) => (s >= 200 && s < 300) || s === 206 || s === 304,
+    timeout: 30000,
+  });
+
+  return {
+    status: audioRes.status,
+    headers: {
+      'Content-Type': audioRes.headers['content-type'] || 'audio/mpeg',
+      'Content-Length': audioRes.headers['content-length'],
+      'Content-Range': audioRes.headers['content-range'],
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'public, max-age=3600',
+    },
+    stream: audioRes.data,
+  };
+}
+
 module.exports = {
   validateTwilioSignature,
   twilioWebhookValidator,
   generateVoiceTwiML,
   generateHoldTwiML,
+  downloadTwilioRecordingAudio,
+  getTwilioRecordingStream,
 };
