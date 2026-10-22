@@ -228,6 +228,14 @@ const processCallTranscript = async (callSid, transcript, callerLabel = null) =>
   updates.processingStatus = 'completed';
   updates.dateProcessed = new Date().toISOString();
 
+  if (process.env.DEBUG) {
+    console.log(
+      `[DEBUG][NER] Output for call ${callSid}: emergency="${updates.emergency || ''}", location="${
+        updates.location || ''
+      }", priority="${updates.priority || ''}", entities=${JSON.stringify(updates.entities || {})}`
+    );
+  }
+
   // Update in-memory cache
   const existing = incidentsStore.get(callSid) || {};
   const fullRecord = { ...existing, ...updates, callSid, key: callSid };
@@ -236,6 +244,11 @@ const processCallTranscript = async (callSid, transcript, callerLabel = null) =>
   // Write to Firebase Realtime Database
   try {
     await update(ref(db, `/calls/${callSid}`), updates);
+    if (process.env.DEBUG) {
+      console.log(
+        `[DEBUG][DB] Stored incident record to database for call ${callSid}: processingStatus="${updates.processingStatus}", priority="${updates.priority || 'TBD'}"`
+      );
+    }
   } catch (err) {
     console.warn('[Firebase] update call error:', err.message);
   }
@@ -277,7 +290,9 @@ module.exports.updateOnDisconnect = async (callSid) => {
       console.log('Final transcript:\t', transcript);
       await processCallTranscript(callSid, transcript);
     }
-  } catch (e) {}
+  } catch (err) {
+    console.error('[Firebase] updateOnDisconnect error:', err.message);
+  }
 };
 
 module.exports.updateTranscript = (callSid, streamSid, transcript, priority) => {
@@ -297,7 +312,9 @@ module.exports.updateTranscript = (callSid, streamSid, transcript, priority) => 
 
   try {
     return update(ref(db, `/calls/${callSid}`), updates);
-  } catch (e) {}
+  } catch (err) {
+    if (process.env.DEBUG) console.warn('[Firebase] updateTranscript error:', err.message);
+  }
 };
 
 /**
@@ -322,6 +339,9 @@ module.exports.getAllIncidents = async () => {
     (a, b) => new Date(b.dateCreated || 0).getTime() - new Date(a.dateCreated || 0).getTime()
   );
 };
+
+module.exports.getIncident = (callSid) => incidentsStore.get(callSid) || null;
+module.exports.incidentsStore = incidentsStore;
 
 /**
  * Update incident status (OPEN -> DISPATCHED -> RESOLVED) or priority
