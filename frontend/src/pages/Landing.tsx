@@ -12,7 +12,7 @@ export const Landing: React.FC = () => {
           <HStack spacing={3}>
             <Icon as={FiShield} w={5} h={5} color="var(--accent)" />
             <Text fontWeight="600" fontSize="15px" letterSpacing="0.01em" color="var(--ink)">
-              RAKSHA112
+              OperatorAI
             </Text>
             <Badge
               bg="var(--surface-alt)"
@@ -49,7 +49,7 @@ export const Landing: React.FC = () => {
       <Box bg="#FFF8E6" borderBottom="1px solid #FFE082" px={{ base: 6, md: 12 }} py={3}>
         <Box maxW="1200px" mx="auto">
           <Text fontSize="13px" color="#664D03" fontWeight="500">
-            <strong>⚠️ Academic Simulation Notice:</strong> RAKSHA112 is strictly an experimental educational
+            <strong>⚠️ Academic Simulation Notice:</strong> OperatorAI is strictly an experimental educational
             demonstration. It is not connected to India&apos;s official ERSS-112 network, police control rooms, or
             healthcare authorities. In a real emergency in India, dial <strong>112</strong> (or 100 / 101 / 108)
             directly from your phone.
@@ -75,7 +75,7 @@ export const Landing: React.FC = () => {
               Intelligent triage and classification for high-volume emergency response dispatch.
             </Heading>
             <Text fontSize="15px" lineHeight="1.6" color="#3E4754">
-              RAKSHA112 is an automated intake pipeline designed to assist emergency control room operators during surge
+              OperatorAI is an automated intake pipeline designed to assist emergency control room operators during surge
               events and line congestion. The system ingests caller voice streams, transcribes regional speech, extracts
               Indian entities, evaluates situational priority, and presents structured incident tickets to dispatchers
               in real time.
@@ -175,7 +175,7 @@ export const Landing: React.FC = () => {
           </Text>
           <Text fontSize="13px" color="#4B5565" lineHeight="1.6">
             In India, 112 is the single emergency contact number integrating Police (100), Fire (101), Ambulance (108),
-            and Disaster Management. RAKSHA112 models an AI co-pilot designed to reduce response latency by
+            and Disaster Management. OperatorAI models an AI co-pilot designed to reduce response latency by
             pre-populating verified incident records before dispatcher pickup.
           </Text>
         </Box>
@@ -192,7 +192,7 @@ export const Landing: React.FC = () => {
           gap={3}
         >
           <Text fontSize="12px" color="#5C6675">
-            RAKSHA112 Emergency Triage Simulator • Academic Project Demo
+            OperatorAI Emergency Triage Simulator • Academic Project Demo
           </Text>
           <Text fontSize="12px" color="#5C6675">
             Institutional Tooling — Authorized Operators Only

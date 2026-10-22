@@ -14,7 +14,7 @@ export function Footer() {
       >
         <HStack spacing={2}>
           <Text fontSize="13px" fontWeight="600" color="var(--ink)">
-            RAKSHA112
+            OperatorAI
           </Text>
           <Text fontSize="12px" color="#717D8A">
             • Emergency Response Support System (ERSS-112) Dispatcher Tooling

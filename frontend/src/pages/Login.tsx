@@ -72,7 +72,7 @@ export const Login: React.FC = () => {
             <HStack spacing={3}>
               <Icon as={FiShield} w={5} h={5} color="var(--accent)" />
               <Text fontWeight="600" fontSize="15px" color="var(--ink)">
-                RAKSHA112
+                OperatorAI
               </Text>
               <Badge
                 bg="var(--surface-alt)"
@@ -219,7 +219,7 @@ export const Login: React.FC = () => {
       {/* Footer */}
       <Box borderTop="1px solid var(--rule)" px={6} py={4} bg="var(--surface)">
         <Text fontSize="12px" color="#717D8A" textAlign="center">
-          RAKSHA112 • Controlled Access Emergency Response Prototype
+          OperatorAI • Controlled Access Emergency Response Prototype
         </Text>
       </Box>
     </Box>

@@ -329,7 +329,7 @@ export const Dashboard = ({
           <HStack spacing={3}>
             <Icon as={FiShield} w={5} h={5} color="var(--accent)" />
             <Text fontWeight="700" fontSize="16px" color="var(--ink)" letterSpacing="-0.02em">
-              OPERATORAI <Text as="span" color="var(--accent)" fontSize="13px" fontWeight="600">RAKSHA112</Text>
+              OPERATORAI <Text as="span" color="var(--accent)" fontSize="13px" fontWeight="600">ERSS-112</Text>
             </Text>
             <Badge
               bg="var(--surface-alt)"
