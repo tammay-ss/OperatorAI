@@ -39,6 +39,12 @@ const {
 } = require('./src/firebase');
 const { analyzePriority } = require('./src/utils');
 const { uploadAudioToAssemblyAI, startTranscription, pollTranscription } = require('./src/assembly');
+const {
+  validateTwilioSignature,
+  twilioWebhookValidator,
+  generateVoiceTwiML,
+  generateHoldTwiML,
+} = require('./src/twilio');
 
 // Rate limiting for upload endpoint
 const uploadLimiter = rateLimit({
@@ -1011,51 +1017,27 @@ const handleIncomingCall = async (req, res) => {
   console.log(`  Recording Callback:   ${recordingCallbackUrl}`);
   console.log(`  Hold Loop URL:        ${holdUrl}`);
 
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Start>
-    <Recording recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" />
-    <Stream url="${streamUrl}" />
-  </Start>
-  <Say voice="Polly.Aditi" language="en-IN">
-    Thank you for calling RAKSHA 1 1 2 Emergency Response. All operators are currently on active calls.
-    Your call is being handled by our emergency AI assistant.
-    Please speak clearly and state your name, your location, and describe your emergency.
-  </Say>
-  <Pause length="40" />
-  <Say voice="Polly.Aditi" language="en-IN">
-    We are processing your emergency details. Please remain on the line.
-  </Say>
-  <Pause length="40" />
-  <Redirect method="POST">${holdUrl}</Redirect>
-</Response>`;
+  const twiml = generateVoiceTwiML({ streamUrl, recordingCallbackUrl, holdUrl });
 
   res.set('Content-Type', 'text/xml');
   return res.send(twiml);
 };
 
-// Bind incoming voice webhook to multiple standard paths for maximum resilience
-app.post(['/', '/api/calls/incoming', '/incoming-call', '/voice'], handleIncomingCall);
-app.get(['/api/calls/incoming', '/incoming-call', '/voice'], handleIncomingCall);
+// Bind incoming voice webhook to multiple standard paths for maximum resilience with signature verification
+app.post(['/', '/api/calls/incoming', '/incoming-call', '/voice'], twilioWebhookValidator, handleIncomingCall);
+app.get(['/api/calls/incoming', '/incoming-call', '/voice'], twilioWebhookValidator, handleIncomingCall);
 
 /**
  * Hold loop endpoint to keep incoming phone call active indefinitely until caller hangs up
  */
-app.post(['/api/calls/twiml-hold', '/twiml-hold'], (req, res) => {
+app.post(['/api/calls/twiml-hold', '/twiml-hold'], twilioWebhookValidator, (req, res) => {
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:8080';
   const rawProto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
   const isHttps = rawProto === 'https' || host.includes('ngrok') || host.includes('loca.lt');
   const httpProtocol = isHttps ? 'https' : 'http';
   const holdUrl = `${httpProtocol}://${host}/api/calls/twiml-hold`;
 
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="Polly.Aditi" language="en-IN">
-    Please continue to remain on the line. An emergency operator is reviewing your case.
-  </Say>
-  <Pause length="40" />
-  <Redirect method="POST">${holdUrl}</Redirect>
-</Response>`;
+  const twiml = generateHoldTwiML(holdUrl);
 
   res.set('Content-Type', 'text/xml');
   return res.send(twiml);
@@ -1065,7 +1047,7 @@ app.post(['/api/calls/twiml-hold', '/twiml-hold'], (req, res) => {
  * Twilio Call Recording Status Callback
  * Invoked by Twilio when the audio recording finishes processing
  */
-app.post(['/api/calls/recording-status', '/api/recording-status'], async (req, res) => {
+app.post(['/api/calls/recording-status', '/api/recording-status'], twilioWebhookValidator, async (req, res) => {
   try {
     const callSid = req.body?.CallSid;
     const recordingSid = req.body?.RecordingSid;
@@ -1100,7 +1082,7 @@ app.post(['/api/calls/recording-status', '/api/recording-status'], async (req, r
 /**
  * Twilio Call Status Callback (e.g. completed, busy, failed, canceled)
  */
-app.post(['/api/calls/status', '/api/call-status'], async (req, res) => {
+app.post(['/api/calls/status', '/api/call-status'], twilioWebhookValidator, async (req, res) => {
   const callSid = req.body?.CallSid;
   const callStatus = req.body?.CallStatus;
   const duration = req.body?.CallDuration;
