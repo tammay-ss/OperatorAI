@@ -10,6 +10,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Dashboard } from './components/Dashboard';
+import { IncidentDashboard } from './pages/IncidentDashboard';
 
 import './index.css';
 
@@ -34,12 +35,30 @@ function App() {
           {/* Public Operator Authentication */}
           <Route path="/login" element={<Login />} />
 
-          {/* Protected Dispatcher Dashboard */}
+          {/* Protected Dispatcher Dashboard (Map & Live Queue) */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
                 <ProtectedDashboardRoute />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Incident Registry & Analytics Dashboard */}
+          <Route
+            path="/incidents"
+            element={
+              <ProtectedRoute>
+                <IncidentDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/incident-dashboard"
+            element={
+              <ProtectedRoute>
+                <IncidentDashboard />
               </ProtectedRoute>
             }
           />

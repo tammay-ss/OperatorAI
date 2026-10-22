@@ -14,7 +14,7 @@ import {
   Tag,
 } from '@chakra-ui/react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   AiOutlinePhone,
   AiOutlineClockCircle,
@@ -359,6 +359,22 @@ export const Dashboard = ({
                 {user?.email || 'Authorized Operator'}
               </Text>
             </HStack>
+
+            {/* Incident Records & Analytics Page Navigation */}
+            <Button
+              as={RouterLink}
+              to="/incidents"
+              size="sm"
+              variant="outline"
+              borderColor="var(--rule)"
+              borderRadius="2px"
+              fontSize="12px"
+              fontWeight="600"
+              color="var(--ink)"
+              _hover={{ bg: 'var(--surface-alt)' }}
+            >
+              📋 Incident Registry & Analytics
+            </Button>
 
             {/* Quick Inbound Emergency Simulation */}
             <Button
