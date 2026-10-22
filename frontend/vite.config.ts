@@ -8,12 +8,14 @@ export default defineConfig({
     host: 'localhost',
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://operatorai-6uq9.onrender.com',
         changeOrigin: true,
+        secure: true,
       },
       '/share-location.html': {
-        target: 'http://localhost:8080',
+        target: 'https://operatorai-6uq9.onrender.com',
         changeOrigin: true,
+        secure: true,
       },
     },
   },
