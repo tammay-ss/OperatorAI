@@ -232,7 +232,7 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick, onStatusChange }
                     </Text>
                   </Box>
                 )}
-              {data.recordingUrl && (
+              {(data.recordingUrl || data.recordingSid) && (
                 <Box p={2.5} bg="var(--surface)" border="1px solid var(--rule)" borderRadius="2px" w="full">
                   <Flex justify="space-between" align="center" mb={1.5}>
                     <Text fontSize="11px" fontWeight="600" color="var(--ink)">
@@ -244,7 +244,15 @@ const TableRow: React.FC<TrProps> = ({ data, selected, onClick, onStatusChange }
                       </Badge>
                     )}
                   </Flex>
-                  <audio controls src={data.recordingUrl} style={{ width: '100%', height: '32px' }} />
+                  <audio
+                    controls
+                    src={
+                      data.recordingUrl && !data.recordingUrl.includes('api.twilio.com')
+                        ? data.recordingUrl
+                        : `/api/calls/${data.callSid}/recording`
+                    }
+                    style={{ width: '100%', height: '32px' }}
+                  />
                 </Box>
               )}
               {(data.geocode || (data.latitude && data.longitude)) && (

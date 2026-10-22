@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const apiTarget = process.env.VITE_BACKEND_URL || 'http://localhost:8080';
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -8,14 +10,14 @@ export default defineConfig({
     host: 'localhost',
     proxy: {
       '/api': {
-        target: 'https://operatorai-6uq9.onrender.com',
+        target: apiTarget,
         changeOrigin: true,
-        secure: true,
+        secure: false,
       },
       '/share-location.html': {
-        target: 'https://operatorai-6uq9.onrender.com',
+        target: apiTarget,
         changeOrigin: true,
-        secure: true,
+        secure: false,
       },
     },
   },
