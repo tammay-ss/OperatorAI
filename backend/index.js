@@ -1101,7 +1101,8 @@ app.post(['/api/calls/status', '/api/call-status'], twilioWebhookValidator, asyn
 
 app.get('/', (_, res) => res.send('RAKSHA112 - Indian Emergency Response AI Simulation Backend'));
 
-server.listen(8080, () => console.log('Listening on Port 8080'));
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => console.log(`Listening on Port ${PORT}`));
 
 const exitHandler = (exitCode = 0) =>
   function () {
